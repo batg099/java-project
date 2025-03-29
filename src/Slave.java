@@ -35,28 +35,20 @@ public class Slave  implements Runnable {
 
                 switch(request) {
                     case "0":
-                        System.out.println("Le client a tapé 0 !");
+                        System.out.println("Le client veut arrêter la connection !");
                         this.socket.close();
                         break;
-                    case "1":
-                        System.out.println("Le client a tapé 1 !");
+                        //
+                    case "-1":
+                        System.out.println("Le client veut connaitre la liste des fichiers !");
                         // output_client_obj.writeObject("La liste des Id est: " + Server.getListId());
-
-
                         output_client_obj.writeObject(Server.container);
                         break;
-                    // Cas ou le client demande le salaire
-                    case "5":
-                        System.out.println("Le client a tapé 5 !");
-                        byte[] test = writeFile(request,blockSize, output_client_obj);
-                        output_client_obj.writeObject(test);
+                    default:
+                        System.out.println("Le client veut le fichier " + request);
+                        writeFile(request,blockSize, output_client_obj);
+                        //output_client_obj.writeObject(test);
                         break;
-                    case "3":
-                        String t2 = input_client_obj.readObject().toString();
-                        int id2 = Integer.parseInt(t2);
-
-                        System.out.println("Le client a tapé 3 !");
-                        output_client_obj.writeObject("Server.getName(id2)");
 
                 }
 
@@ -66,12 +58,33 @@ public class Slave  implements Runnable {
             System.out.println(e);
         }
     }
-    public byte[] writeFile(String request, int blockSize, ObjectOutputStream d ) throws IOException {
+    // Va servir à écrire le fichier dans un tableau de bytes, puis d'envoyer les sizeBlocks
+    public void writeFile(String request, int blockSize, ObjectOutputStream d ) throws IOException {
         //System.out.println(Server.container.get(file));
         File file = new File(Server.container.get(Integer.parseInt(request)));
         byte[] b = Files.readAllBytes(file.toPath());
-        //System.out.println("Le salaire du professeur est : " + Server.getSalary(1));
-        return b;
+        int current = 0;
+        byte[] b2 = new byte[blockSize];
+        System.out.println(b.length);
+        // We only send blockSize bytes
+        for (int i = 0; i <= b.length - 1; i = i + 1) {
+            System.out.println(i + " et " + (blockSize - 1));
+            if(i % (blockSize - 1) == 0 && i!= 0){
+                System.out.println("Je rentre !");
+                b2[current] = b[i];
+                d.writeObject(b2);
+                b2 = new byte[blockSize];
+                current =0;
+            }
+            else{
+                b2[current] = b[i];
+                current = current + 1;
+            }
+            if(i == b.length - 1){
+                d.writeObject(b2);
+            }
+        }
+        //d.writeObject(b2);
     }
 
 

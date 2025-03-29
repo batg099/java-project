@@ -31,25 +31,12 @@ public class Main_Client_Thread implements Runnable{
 
     @Override
     public void run() {
-        // On demande le salaire de l'employé x
-        try {
-            output_client.writeObject("2");
-            output_client.writeObject(String.valueOf(x));
-            String salaire = input_client.readObject().toString();
-            // On demande le nom de l'employé x
-            output_client.writeObject("3");
-            output_client.writeObject(String.valueOf(x));
-            String name = input_client.readObject().toString();
 
-            System.out.println("Le salaire du professeur " + x + "-" + name +  " est : " + salaire);
-        }catch (IOException | ClassNotFoundException e) {
-            throw new RuntimeException(e);
-        }
     }
     public void manage(){
         try {
             // On initialise la socket
-            this.output_client.writeObject("1");
+            this.output_client.writeObject("-1");
             // On lit ce qu'on reçoit
             // On pourrait directement cast, car on est censer connaitre les types reçues
             // On pourrait donc faire : ArrayList<Integer> liste = ArrayList<Integer> request;
@@ -57,12 +44,12 @@ public class Main_Client_Thread implements Runnable{
 
             @SuppressWarnings("unchecked")
             HashMap<Integer, String> request = (HashMap<Integer, String>) req;
-            request.forEach((k,v) -> {
+            request.forEach((k, v) -> {
                 System.out.println("J'ai reçu " + v + " - " + k);
             });
 
             // If no file chosen
-            while(x == 0) {
+            while (x == 0) {
                 // On envoie la requête
 
                 //System.out.println("hi");
@@ -77,13 +64,15 @@ public class Main_Client_Thread implements Runnable{
 
             // We ask for the file to be sent
             this.output_client.writeObject(x);
-            Object req2 = this.input_client.readObject();
-            // We transform the byte Array into a String
-            String s = new String((byte[])req2,"UTF-8");
-            System.out.println(s);
 
-
-
+            byte[] t = new byte[100];
+            for (int i = 0; i <= 10; i = i + 1){
+                //executor.submit(new Main_Client_Thread(0));
+                Object req2 = this.input_client.readObject();
+                // We transform the byte Array into a String
+                String s = new String((byte[]) req2, "UTF-8");
+                System.out.print(s);
+            }
         }
         catch (Exception e) {
             System.out.println(e);

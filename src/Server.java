@@ -44,7 +44,7 @@ public class Server {
                 System.out.println("Waiting for connection...");
                 Socket client = this.serverSocket.accept();
                 System.out.println("Accepted connection from " + client.getInetAddress().getHostAddress());
-                pool.submit(new Slave(client,1));
+                pool.submit(new Slave(client,10));
                 //pool.submit(new Slave());
 
             } catch (IOException e) {
