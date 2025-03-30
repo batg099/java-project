@@ -1,5 +1,7 @@
 import java.io.*;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.*;import java.util.Scanner;
@@ -74,26 +76,46 @@ public class Main_Client_Thread implements Runnable{
 
             // We ask for the file to be sent
             this.output_client.writeObject(x);
-            String requestedFile = String.valueOf(x) + ".txt";
+            String requestedFile = "__" + request.get(x);
             File f =  new File(String.valueOf(requestedFile));
             // If the file has been successfully created
             f.createNewFile();
+            String finale= "";
                 //ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
-            for (int i = 0; i <= 10; i = i + 1) {
-                //executor.submit(new Main_Client_Thread(0));
-                Object req2 = this.input_client.readObject();
-                // We transform the byte Array into a String
-                String s = new String((byte[]) req2, "UTF-8");
-                OutputStream o = new FileOutputStream(requestedFile);
-                o.write((byte[]) req2);
-                System.out.print(s);
+            // If it takes more than 0.5 seconds to receive => we stop reading
+            client.setSoTimeout(500);
+            try {
+                for (int i = 0; i <= 5; i = i + 1) {
+                    //executor.submit(new Main_Client_Thread(0));
+                    Object req2 = this.input_client.readObject();
+                    // We transform the byte Array into a String using the UTF-8 standard
+                    String s = new String((byte[]) req2, StandardCharsets.UTF_8);
+                    // We merge the different texts received
+                    finale =  finale + s;
+                }
             }
+            catch(SocketTimeoutException e){
+                System.out.println(" Temps d'attente écoulé !");
+            }
+            //System.out.println("habibi " + finale);
+            byte [] t = finale.toString().getBytes();
+            ByteArrayOutputStream b = new ByteArrayOutputStream();
+            for (Byte b2 : t){
+                if( b2 != 0){
+                    b.write(b2);
+                }
+            }
+            t = b.toByteArray();
+            OutputStream o = new FileOutputStream(requestedFile);
+            o.write((t));
         }
         catch (Exception e) {
             System.out.println(e);
         }
 
     }
+
+    //public byte[] cleanByteArray(byte[])
     public static void main(String[] args) throws IOException {
         String filename = null;
 

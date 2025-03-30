@@ -1,10 +1,7 @@
 import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public class Slave  implements Runnable {
     private final Socket socket;
@@ -79,6 +76,7 @@ public class Slave  implements Runnable {
         // We only send blockSize bytes
         for (int i = 0; i <= b.length - 1; i = i + 1) {
             System.out.println(i + " et " + (blockSize - 1));
+            // If we've reached the necessary number of bytes
             if(i % (blockSize - 1) == 0 && i!= 0){
                 System.out.println("Je rentre !");
                 b2[current] = b[i];
@@ -87,11 +85,24 @@ public class Slave  implements Runnable {
                 current =0;
             }
             else{
+                System.out.println("Je rentre 2 !");
                 b2[current] = b[i];
                 current = current + 1;
             }
+            // For the last character, the program go in both else and this if
             if(i == b.length - 1){
+                System.out.println("Je rentre 3 !");
+                // Previous version : ne laisser que b2
+                byte [] b3 = new byte[current];
+                int current2 = 0;
+                for (int j=0;j<=b2.length-1;j=j+1){
+                    if(b2[j] != 0){
+                        b3[current2] = b2[j];
+                        current2 =current2 +1;
+                    }
+                }
                 d.writeObject(b2);
+                break;
             }
         }
         //d.writeObject(b2);
