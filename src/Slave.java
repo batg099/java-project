@@ -2,12 +2,14 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
 public class Slave  implements Runnable {
     private final Socket socket;
     private final int blockSize;
+
 
     public static void main(String[] args) {
         System.out.println("Slave World");
@@ -46,7 +48,15 @@ public class Slave  implements Runnable {
                         break;
                     default:
                         System.out.println("Le client veut le fichier " + request);
+                        File file = new File(request);
+                        int hashServer = file.hashCode();
+                        // We send the file
                         writeFile(request,blockSize, output_client_obj);
+                        // We receive the hashCode
+                        Object hashClient = input_client_obj.readObject();
+                        if (hashClient.equals(hashServer) ){
+                            System.out.println("The file has been successfully received");
+                        }
                         //output_client_obj.writeObject(test);
                         break;
 

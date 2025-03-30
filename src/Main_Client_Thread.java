@@ -31,7 +31,17 @@ public class Main_Client_Thread implements Runnable{
 
     @Override
     public void run() {
+        Object req2 = null;
+        System.out.println("--");
+        try {
+            req2 = this.input_client.readObject();
+            // We transform the byte Array into a String
+            String s = new String((byte[]) req2, "UTF-8");
+            System.out.print(s);
 
+        } catch (IOException | ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
     }
     public void manage(){
         try {
@@ -64,13 +74,18 @@ public class Main_Client_Thread implements Runnable{
 
             // We ask for the file to be sent
             this.output_client.writeObject(x);
-
-            byte[] t = new byte[100];
-            for (int i = 0; i <= 10; i = i + 1){
+            String requestedFile = String.valueOf(x) + ".txt";
+            File f =  new File(String.valueOf(requestedFile));
+            // If the file has been successfully created
+            f.createNewFile();
+                //ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
+            for (int i = 0; i <= 10; i = i + 1) {
                 //executor.submit(new Main_Client_Thread(0));
                 Object req2 = this.input_client.readObject();
                 // We transform the byte Array into a String
                 String s = new String((byte[]) req2, "UTF-8");
+                OutputStream o = new FileOutputStream(requestedFile);
+                o.write((byte[]) req2);
                 System.out.print(s);
             }
         }
