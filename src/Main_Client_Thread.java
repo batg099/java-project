@@ -90,7 +90,7 @@ public class Main_Client_Thread implements Runnable{
             client.setSoTimeout(500);
             try {
                 // We can only read a maximum of (20 * blockSize) byte
-                for (int i = 0; i <= 20; i = i + 1) {
+                while(true) {
                     //executor.submit(new Main_Client_Thread(0));
                     Object req2 = this.input_client.readObject();
                     // We transform the byte Array into a String using the UTF-8 standard
@@ -103,20 +103,22 @@ public class Main_Client_Thread implements Runnable{
                 System.out.println(" Temps d'attente écoulé !");
             }
             //System.out.println("habibi " + finale);
+            // We retransform the final string into a byte array
             byte [] t = finale.toString().getBytes();
             // We clean the byte array (removing the null elements)
             t = cleanByteArray(t);
             //System.out.println("---" + Arrays.toString(t));
+            // We write the byte array into the requested file
             FileOutputStream fl = new FileOutputStream(requestedFile);
             fl.write((t));
-            // we generate the hascode of the file
 
+            // we generate the hashcode of the file
             byte[] bytesOfMessage = Files.readAllBytes(Paths.get(requestedFile));
             MessageDigest md = MessageDigest.getInstance("MD5");
             byte[] theMD5digest = md.digest(bytesOfMessage);
 
-
             //System.out.println("My hashcode is"  + Arrays.toString(theMD5digest));
+            // We send the hashCode
             output_client.writeObject(theMD5digest);
 
         }

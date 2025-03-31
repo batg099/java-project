@@ -13,7 +13,8 @@ public class Slave  implements Runnable {
     private final int blockSize;
     private final ObjectInputStream input_client_obj;
     private final ObjectOutputStream output_client_obj;
-    private static HashMap<String,ArrayList<Socket>> trusted;
+    // A HashMap of File/Trusted clients
+    public HashMap<String,ArrayList<Socket>> trusted;
 
 
 
@@ -21,12 +22,12 @@ public class Slave  implements Runnable {
         System.out.println("Slave World");
     }
 
-    public Slave(Socket client, int blockSize, ObjectInputStream i, ObjectOutputStream o){
+    public Slave(Socket client, int blockSize, ObjectInputStream i, ObjectOutputStream o, HashMap<String,ArrayList<Socket>> trusted){
         this.socket = client;
         this.blockSize = blockSize;
         this.input_client_obj = i;
         this.output_client_obj = o;
-        this.trusted = new HashMap<String,ArrayList<Socket>>();
+        this.trusted = trusted;
     }
 
     public void run() {
@@ -74,7 +75,8 @@ public class Slave  implements Runnable {
         }
     }
     // add the client into the trusted list for the requested file
-    public void addTrusted(String request){
+    // This method is synchronized because we modify a static element
+    public synchronized void addTrusted(String request){
         // If no client associated previously, we create an array list
         trusted.putIfAbsent(request,new ArrayList<Socket>());
         // We get the Array List
@@ -111,7 +113,7 @@ public class Slave  implements Runnable {
         byte[] b = Files.readAllBytes(file.toPath());
         int current = 0;
         byte[] b2 = new byte[blockSize];
-        System.out.println(b.length);
+        //System.out.println(b.length);
         // We only send blockSize bytes
         for (int i = 0; i <= b.length - 1; i = i + 1) {
             //System.out.println(i + " et " + (blockSize - 1));

@@ -18,13 +18,17 @@ public class Server {
     private int poolSize;
     private boolean isFinished;
     private boolean isRunning;
+    // A HashMap of File_id/File_name
     public static HashMap<Integer,String> container;
+    // A HashMap of File/Trusted clients
+    private HashMap<String,ArrayList<Socket>> trusted;
 
     public Server(int port, int poolSize) {
         this.pool = Executors.newFixedThreadPool(poolSize);
         this.port = port;
         this.poolSize = poolSize;
-        this.container = new HashMap<Integer,String>();
+        this.trusted = new HashMap<String,ArrayList<Socket>>();
+        container = new HashMap<Integer,String>();
         int id = 0;
         // Set the default directory to current one
         System.setProperty("user.dir", ".");
@@ -50,7 +54,7 @@ public class Server {
                 ObjectInputStream input_client_obj = new ObjectInputStream(client.getInputStream());
                 ObjectOutputStream output_client_obj = new ObjectOutputStream(client.getOutputStream());
 
-                pool.submit(new Slave(client,10,input_client_obj,output_client_obj));
+                pool.submit(new Slave(client,1000,input_client_obj,output_client_obj, trusted));
                 //pool.submit(new Slave());
 
             } catch (IOException e) {
@@ -73,7 +77,9 @@ public class Server {
         return pool;
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException  {
         System.out.println("Server World");
+        Server server = new Server(12345,10);
+        server.manageRequest();
     }
 }
