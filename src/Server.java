@@ -1,5 +1,7 @@
 import java.io.File;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Files;
@@ -44,7 +46,11 @@ public class Server {
                 System.out.println("Waiting for connection...");
                 Socket client = this.serverSocket.accept();
                 System.out.println("Accepted connection from " + client.getInetAddress().getHostAddress());
-                pool.submit(new Slave(client,10));
+
+                ObjectInputStream input_client_obj = new ObjectInputStream(client.getInputStream());
+                ObjectOutputStream output_client_obj = new ObjectOutputStream(client.getOutputStream());
+
+                pool.submit(new Slave(client,10,input_client_obj,output_client_obj));
                 //pool.submit(new Slave());
 
             } catch (IOException e) {

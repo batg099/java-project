@@ -2,7 +2,11 @@ import java.io.*;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.concurrent.*;import java.util.Scanner;
 
@@ -85,7 +89,8 @@ public class Main_Client_Thread implements Runnable{
             // If it takes more than 0.5 seconds to receive => we stop reading
             client.setSoTimeout(500);
             try {
-                for (int i = 0; i <= 5; i = i + 1) {
+                // We can only read a maximum of (20 * blockSize) byte
+                for (int i = 0; i <= 20; i = i + 1) {
                     //executor.submit(new Main_Client_Thread(0));
                     Object req2 = this.input_client.readObject();
                     // We transform the byte Array into a String using the UTF-8 standard
@@ -99,20 +104,36 @@ public class Main_Client_Thread implements Runnable{
             }
             //System.out.println("habibi " + finale);
             byte [] t = finale.toString().getBytes();
-            ByteArrayOutputStream b = new ByteArrayOutputStream();
-            for (Byte b2 : t){
-                if( b2 != 0){
-                    b.write(b2);
-                }
-            }
-            t = b.toByteArray();
-            OutputStream o = new FileOutputStream(requestedFile);
-            o.write((t));
+            // We clean the byte array (removing the null elements)
+            t = cleanByteArray(t);
+            //System.out.println("---" + Arrays.toString(t));
+            FileOutputStream fl = new FileOutputStream(requestedFile);
+            fl.write((t));
+            // we generate the hascode of the file
+
+            byte[] bytesOfMessage = Files.readAllBytes(Paths.get(requestedFile));
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] theMD5digest = md.digest(bytesOfMessage);
+
+
+            //System.out.println("My hashcode is"  + Arrays.toString(theMD5digest));
+            output_client.writeObject(theMD5digest);
+
         }
         catch (Exception e) {
             System.out.println(e);
         }
 
+    }
+
+    public byte[] cleanByteArray(byte[] b){
+        ByteArrayOutputStream o = new ByteArrayOutputStream();
+        for (Byte bt : b){
+            if( bt != 0){
+                o.write(bt);
+            }
+        }
+        return o.toByteArray();
     }
 
     //public byte[] cleanByteArray(byte[])
