@@ -21,7 +21,7 @@ public class Server {
     // A HashMap of File_id/File_name
     public static HashMap<Integer,String> container;
     // A HashMap of File/Trusted clients
-    private HashMap<String,ArrayList<Socket>> trusted;
+    public HashMap<String,ArrayList<Socket>> trusted;
 
     public Server(int port, int poolSize) {
         this.pool = Executors.newFixedThreadPool(poolSize);
