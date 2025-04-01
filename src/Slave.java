@@ -54,10 +54,20 @@ public class Slave  implements Runnable {
                         break;
                     default:
                         System.out.println("Le client veut le fichier " + request);
+
+                        // A revoir
+                        Object oi = input_client_obj.readObject();
+                        ArrayList<Integer> offsets = (ArrayList<Integer>) oi;
+                        System.out.println("I received " + oi.toString());
+
+                        /// ////
+
                         File file = new File(request);
                         int hashServer = file.hashCode();
                         // We send the file
-                        writeFile(request,blockSize, output_client_obj);
+                        writeFile2(Files.readAllBytes(Paths.get(Server.container.get(Integer.valueOf(request)))),
+                                offsets.get(0), offsets.get(1));
+                        //writeFile(request,blockSize, output_client_obj);
                         // If (our file's MD5) = (the client's MD5)
                         if(verifyMD5(request)){
                             // We add the client into the trusted list for the requested file
@@ -74,6 +84,26 @@ public class Slave  implements Runnable {
             System.out.println(e);
         }
     }
+
+    public void writeFile2(byte[] file, int debut, int fin) throws IOException {
+        if(fin == -1) fin = file.length ;
+
+        for(int i=debut;i<=fin;i=i+blockSize){
+            System.out.println(i + " ---- " + (blockSize));
+            ByteArrayOutputStream b = new ByteArrayOutputStream();
+            if(i+ blockSize > fin){
+                System.out.println(i + " | " + fin);
+                b = new ByteArrayOutputStream();
+                b.write(file, i, fin-i);
+                output_client_obj.writeObject(b.toByteArray());
+                break;
+            }
+            b.write(file, i, blockSize);
+            System.out.println("**");
+            output_client_obj.writeObject(b.toByteArray());
+        }
+    }
+
     // add the client into the trusted list for the requested file
     // This method is synchronized because we modify a static element
     public synchronized void addTrusted(String request){
@@ -107,7 +137,7 @@ public class Slave  implements Runnable {
         return false;
     }
     // Va servir à écrire le fichier dans un tableau de bytes, puis d'envoyer les sizeBlocks
-    public void writeFile(String request, int blockSize, ObjectOutputStream d ) throws IOException {
+    public void writeFile(String request, int blockSize, ObjectOutputStream o ) throws IOException {
         //System.out.println(Server.container.get(file));
         File file = new File(Server.container.get(Integer.parseInt(request)));
         byte[] b = Files.readAllBytes(file.toPath());
@@ -121,9 +151,9 @@ public class Slave  implements Runnable {
             if(i % (blockSize - 1) == 0 && i!= 0){
                 //System.out.println("Je rentre !");
                 b2[current] = b[i];
-                d.writeObject(b2);
+                o.writeObject(b2);
                 b2 = new byte[blockSize];
-                current =0;
+                current = 0;
             }
             else{
                 //System.out.println("Je rentre 2 !");
@@ -142,7 +172,8 @@ public class Slave  implements Runnable {
                         current2 =current2 +1;
                     }
                 }
-                d.writeObject(b2);
+                o.writeObject(b2);
+
                 break;
             }
         }

@@ -1,14 +1,13 @@
 import java.io.*;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.concurrent.*;import java.util.Scanner;
+import java.util.*;
+import java.util.concurrent.*;
 
 // Remarque, ça va prendre 2 secondes à afficher les informations, car on fait un Thread.sleep(2000) dans le serveur
 
@@ -17,14 +16,20 @@ public class Main_Client_Thread implements Runnable{
     private Socket client;
     private ObjectOutputStream output_client;
     private ObjectInputStream  input_client;
+    private HashMap<Integer,Object> position;
+    private int debut;
+    private int fin;
     private int x;
-    public Main_Client_Thread(int x) throws IOException {
+    public Main_Client_Thread(int x, int debut, int fin) throws IOException {
         try {
             this.executor = Executors.newFixedThreadPool(6);
             client = new Socket("127.0.0.1", 12345);
             this.output_client = new ObjectOutputStream(client.getOutputStream());
             this.input_client = new ObjectInputStream(client.getInputStream());
+            this.position = new HashMap<Integer,Object>();
             this.x = x;
+            this.debut = debut;
+            this.fin = fin;
         }
         catch (IOException e){
             System.out.println(e);
@@ -37,18 +42,29 @@ public class Main_Client_Thread implements Runnable{
 
     @Override
     public void run() {
-        Object req2 = null;
-        System.out.println("--");
+        String finale= "";
+        //ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
+        // If it takes more than 0.5 seconds to receive => we stop reading
         try {
-            req2 = this.input_client.readObject();
-            // We transform the byte Array into a String
-            String s = new String((byte[]) req2, "UTF-8");
-            System.out.print(s);
-
-        } catch (IOException | ClassNotFoundException e) {
+            client.setSoTimeout(500);
+            // We can only read a maximum of (20 * blockSize) byte
+            while(true) {
+                // We receive the positioning of the block
+                Object req1 = this.input_client.readObject();
+                System.out.println("---" );
+                // We receive the block
+                Object req2 = this.input_client.readObject();
+                // We add the result to our HashMap
+                position.put((Integer)req1 , req2);
+            }
+        }
+        catch(SocketTimeoutException e){
+            System.out.println(" Temps d'attente écoulé !");
+        } catch (ClassNotFoundException | IOException e) {
             throw new RuntimeException(e);
         }
     }
+
     public void manage(){
         try {
             // On initialise la socket
@@ -85,23 +101,42 @@ public class Main_Client_Thread implements Runnable{
             // If the file has been successfully created
             f.createNewFile();
             String finale= "";
+
+            // We specify the bytes that we want for the file
+            ArrayList<Integer> offsets = new ArrayList<Integer>();
+            offsets.add(0);
+            offsets.add(-1);
+
+            output_client.writeObject(offsets);
+
+
+            executor.submit(new Main_Client_Thread(0));
+            executor.submit(new Main_Client_Thread(0));
+            executor.submit(new Main_Client_Thread(0));
+            executor.submit(new Main_Client_Thread(0));
+            executor.awaitTermination(10, TimeUnit.SECONDS);
+            System.out.println(position.toString());
+
                 //ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
+            /*
             // If it takes more than 0.5 seconds to receive => we stop reading
             client.setSoTimeout(500);
             try {
                 // We can only read a maximum of (20 * blockSize) byte
                 while(true) {
-                    //executor.submit(new Main_Client_Thread(0));
                     Object req2 = this.input_client.readObject();
                     // We transform the byte Array into a String using the UTF-8 standard
                     String s = new String((byte[]) req2, StandardCharsets.UTF_8);
                     // We merge the different texts received
                     finale =  finale + s;
+
                 }
             }
             catch(SocketTimeoutException e){
                 System.out.println(" Temps d'attente écoulé !");
             }
+
+            */
             //System.out.println("habibi " + finale);
             // We retransform the final string into a byte array
             byte [] t = finale.toString().getBytes();
