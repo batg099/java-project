@@ -55,26 +55,34 @@ public class Slave  implements Runnable {
                     default:
                         System.out.println("Le client veut le fichier " + request);
 
-                        // A revoir
-                        Object oi = input_client_obj.readObject();
-                        ArrayList<Integer> offsets = (ArrayList<Integer>) oi;
-                        System.out.println("I received " + oi.toString());
+                        if(!(request.equals("Client"))) {
+                            // A revoir
+                            Object oi = input_client_obj.readObject();
+                            ArrayList<Integer> offsets = (ArrayList<Integer>) oi;
+                            System.out.println("I received " + oi.toString());
 
-                        /// ////
+                            //Object o2 = input_client_obj.readObject();
+                            //System.out.println("I received the block number : " + o2.toString());
 
-                        File file = new File(request);
-                        int hashServer = file.hashCode();
-                        // We send the file
-                        writeFile2(Files.readAllBytes(Paths.get(Server.container.get(Integer.valueOf(request)))),
-                                offsets.get(0), offsets.get(1));
-                        //writeFile(request,blockSize, output_client_obj);
-                        // If (our file's MD5) = (the client's MD5)
-                        if(verifyMD5(request)){
-                            // We add the client into the trusted list for the requested file
-                            addTrusted(request);
+                            /// ////
+
+                            File file = new File(request);
+                            int hashServer = file.hashCode();
+                            // We send the file
+                            writeFile2(Files.readAllBytes(Paths.get(Server.container.get(Integer.valueOf(request)))),
+                                    offsets.get(0), offsets.get(1));
+                            //writeFile(request,blockSize, output_client_obj);
+                            // If (our file's MD5) = (the client's MD5)
                         }
-                        System.out.println(trusted.toString());
-                        //output_client_obj.writeObject(test);
+                        else {
+                            Object oz = input_client_obj.readObject();
+                            if (verifyMD5((String)oz)) {
+                                // We add the client into the trusted list for the requested file
+                                addTrusted(request);
+                            }
+                            System.out.println(trusted.toString());
+                            //output_client_obj.writeObject(test);
+                        }
                         break;
                 }
 
@@ -87,20 +95,31 @@ public class Slave  implements Runnable {
 
     public void writeFile2(byte[] file, int debut, int fin) throws IOException {
         if(fin == -1) fin = file.length ;
-
-        for(int i=debut;i<=fin;i=i+blockSize){
-            System.out.println(i + " ---- " + (blockSize));
+        if(debut > file.length) return;
+        if(fin - debut > file.length){
+            System.out.println("Hiiii");
             ByteArrayOutputStream b = new ByteArrayOutputStream();
-            if(i+ blockSize > fin){
-                System.out.println(i + " | " + fin);
-                b = new ByteArrayOutputStream();
-                b.write(file, i, fin-i);
-                output_client_obj.writeObject(b.toByteArray());
-                break;
-            }
-            b.write(file, i, blockSize);
-            System.out.println("**");
+            b.write(file, debut, file.length);
             output_client_obj.writeObject(b.toByteArray());
+        }
+        else {
+            for (int i = debut; i <= fin; i = i + blockSize) {
+                System.out.println(i + " ---- " + (blockSize));
+                ByteArrayOutputStream b = new ByteArrayOutputStream();
+                if (i + blockSize > fin) {
+                    System.out.println("Hiiii222");
+                    System.out.println(i + " | " + fin);
+                    b = new ByteArrayOutputStream();
+                    b.write(file, i, fin - i );
+                    output_client_obj.writeObject(b.toByteArray());
+                    break;
+                }
+                System.out.println("Hiiii333");
+                System.out.println(i + " --------- " + fin);
+                b.write(file, i, blockSize);
+                System.out.println("**");
+                output_client_obj.writeObject(b.toByteArray());
+            }
         }
     }
 

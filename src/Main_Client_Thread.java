@@ -20,8 +20,12 @@ public class Main_Client_Thread implements Runnable{
     private int debut;
     private int fin;
     private int x;
-    public Main_Client_Thread(int x, int debut, int fin) throws IOException {
+    private String finalString;
+    private int numBlock;
+    private static ArrayList<String> l;
+    public Main_Client_Thread(int x, int debut, int fin, int numBlock) throws IOException {
         try {
+
             this.executor = Executors.newFixedThreadPool(6);
             client = new Socket("127.0.0.1", 12345);
             this.output_client = new ObjectOutputStream(client.getOutputStream());
@@ -30,6 +34,14 @@ public class Main_Client_Thread implements Runnable{
             this.x = x;
             this.debut = debut;
             this.fin = fin;
+            this.finalString="";
+            this.numBlock = numBlock;
+            this.l = new ArrayList<String>();
+            l.add("");
+            l.add("");
+            l.add("");
+            l.add("");
+            //this.req = req;
         }
         catch (IOException e){
             System.out.println(e);
@@ -37,31 +49,54 @@ public class Main_Client_Thread implements Runnable{
     }
 
     public Main_Client_Thread() throws IOException {
-        this(0);
+        this(0, 0, -1,0);
     }
 
     @Override
     public void run() {
-        String finale= "";
-        //ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
-        // If it takes more than 0.5 seconds to receive => we stop reading
-        try {
+        System.out.println(" Je suis un thread !");
+
+        try{
+            // On initialise la socket
+            this.output_client.writeObject("-1");
+            // On lit ce qu'on reçoit
+            // On pourrait directement cast, car on est censer connaitre les types reçues
+            // On pourrait donc faire : ArrayList<Integer> liste = ArrayList<Integer> request;
+            Object req = this.input_client.readObject();
+
+            this.output_client.writeObject(x);
+
+            ArrayList<Integer> offsets = new ArrayList<Integer>();
+            offsets.add(debut);
+            offsets.add(fin);
+            this.output_client.writeObject(offsets);
+
+            //this.output_client.writeObject(this.numBlock);
+
+            @SuppressWarnings("unchecked")
+            HashMap<Integer, String> request = (HashMap<Integer, String>) req;
+            String s = "__" + request.get(x);
+            String finale ="";
+            System.out.println(s);
             client.setSoTimeout(500);
-            // We can only read a maximum of (20 * blockSize) byte
-            while(true) {
-                // We receive the positioning of the block
-                Object req1 = this.input_client.readObject();
-                System.out.println("---" );
-                // We receive the block
-                Object req2 = this.input_client.readObject();
-                // We add the result to our HashMap
-                position.put((Integer)req1 , req2);
+            try {
+                while (true) {
+                    Object req2 = this.input_client.readObject();
+                    // We transform the byte Array into a String using the UTF-8 standard
+                    String s2 = new String((byte[]) req2, StandardCharsets.UTF_8);
+                    // We merge the different texts received
+                    finale = finale + s2;
+                }
             }
-        }
-        catch(SocketTimeoutException e){
-            System.out.println(" Temps d'attente écoulé !");
-        } catch (ClassNotFoundException | IOException e) {
-            throw new RuntimeException(e);
+            catch(SocketTimeoutException sck){
+                System.out.println(" Temps d'attente écoulé !");
+            }
+            //System.out.println(finale);
+            finalString = finalString + finale;
+            l.set(this.numBlock,finalString);
+            //System.out.println(finalString);
+        } catch (Exception e) {
+            System.out.println(e);
         }
     }
 
@@ -73,19 +108,16 @@ public class Main_Client_Thread implements Runnable{
             // On pourrait directement cast, car on est censer connaitre les types reçues
             // On pourrait donc faire : ArrayList<Integer> liste = ArrayList<Integer> request;
             Object req = this.input_client.readObject();
-
             @SuppressWarnings("unchecked")
             HashMap<Integer, String> request = (HashMap<Integer, String>) req;
             request.forEach((k, v) -> {
                 System.out.println("J'ai reçu " + v + " - " + k);
             });
 
+            this.output_client.writeObject("Client");
+
             // If no file chosen
             while (x == 0) {
-                // On envoie la requête
-
-                //System.out.println("hi");
-
                 Scanner myObj = new Scanner(System.in);  // Create a Scanner object
                 System.out.println("Enter file id");
 
@@ -94,28 +126,31 @@ public class Main_Client_Thread implements Runnable{
                 System.out.println("file id chosen is: " + x);  // Output user input
             }
 
-            // We ask for the file to be sent
-            this.output_client.writeObject(x);
-            String requestedFile = "__" + request.get(x);
-            File f =  new File(String.valueOf(requestedFile));
-            // If the file has been successfully created
-            f.createNewFile();
-            String finale= "";
-
-            // We specify the bytes that we want for the file
-            ArrayList<Integer> offsets = new ArrayList<Integer>();
-            offsets.add(0);
-            offsets.add(-1);
-
-            output_client.writeObject(offsets);
+            executor.submit(new Main_Client_Thread(x, 0, 1287,0));
+            executor.submit(new Main_Client_Thread(x, 1287, 2000,1));
+            executor.submit(new Main_Client_Thread(x, 2000, 3000,2));
+            executor.submit(new Main_Client_Thread(x, 3000, -1,3));
+            executor.awaitTermination(2, TimeUnit.SECONDS);
+            String f = "";
+            for(String st : this.l){
+                f = f + st;
+            }
+            System.out.println("----------------------------------");
+            System.out.println(f);
 
 
-            executor.submit(new Main_Client_Thread(0));
-            executor.submit(new Main_Client_Thread(0));
-            executor.submit(new Main_Client_Thread(0));
-            executor.submit(new Main_Client_Thread(0));
-            executor.awaitTermination(10, TimeUnit.SECONDS);
-            System.out.println(position.toString());
+            byte[] t = f.getBytes();
+            // We clean the byte array (removing the null elements)
+            t = cleanByteArray(t);
+            //System.out.println("---" + Arrays.toString(t));
+            // We write the byte array into the requested file
+            System.out.println(request.get(x));
+            String requestedFile = "__"+request.get(x);
+            FileOutputStream fl = new FileOutputStream(requestedFile);
+            fl.write((t));
+
+
+            //System.out.println(position.toString());
 
                 //ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
             /*
@@ -139,14 +174,18 @@ public class Main_Client_Thread implements Runnable{
             */
             //System.out.println("habibi " + finale);
             // We retransform the final string into a byte array
-            byte [] t = finale.toString().getBytes();
+            //byte [] t = finale.getBytes();
+            /*
+            byte[] t = finalString.getBytes();
             // We clean the byte array (removing the null elements)
             t = cleanByteArray(t);
             //System.out.println("---" + Arrays.toString(t));
             // We write the byte array into the requested file
             FileOutputStream fl = new FileOutputStream(requestedFile);
             fl.write((t));
+            */
 
+            this.output_client.writeObject(String.valueOf(x));
             // we generate the hashcode of the file
             byte[] bytesOfMessage = Files.readAllBytes(Paths.get(requestedFile));
             MessageDigest md = MessageDigest.getInstance("MD5");
@@ -155,6 +194,8 @@ public class Main_Client_Thread implements Runnable{
             //System.out.println("My hashcode is"  + Arrays.toString(theMD5digest));
             // We send the hashCode
             output_client.writeObject(theMD5digest);
+
+
 
         }
         catch (Exception e) {

@@ -54,7 +54,7 @@ public class Server {
                 ObjectInputStream input_client_obj = new ObjectInputStream(client.getInputStream());
                 ObjectOutputStream output_client_obj = new ObjectOutputStream(client.getOutputStream());
 
-                pool.submit(new Slave(client,1000,input_client_obj,output_client_obj, trusted));
+                pool.submit(new Slave(client,3,input_client_obj,output_client_obj, trusted));
                 //pool.submit(new Slave());
 
             } catch (IOException e) {
