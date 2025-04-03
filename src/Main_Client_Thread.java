@@ -82,8 +82,6 @@ public class Main_Client_Thread implements Runnable{
             offsets.add(fin);
             this.output_client.writeObject(offsets);
 
-            //this.output_client.writeObject(this.numBlock);
-
             @SuppressWarnings("unchecked")
             HashMap<Integer, String> request = (HashMap<Integer, String>) req;
             String s = "__" + request.get(x);
@@ -101,9 +99,12 @@ public class Main_Client_Thread implements Runnable{
             }
             catch(SocketTimeoutException sck){
                 System.out.println(" Temps d'attente écoulé !");
+                System.out.println("J'ai reçu : " + finale + " | And I am the thread number " + numBlock);
+                // We close the connection
+                output_client.writeObject("0");
             }
             finalString = finalString + finale;
-            l.set(this.numBlock,finalString);
+            l.set(this.numBlock-1,finalString);
         } catch (Exception e) {
             System.out.println(e);
         }
@@ -113,7 +114,17 @@ public class Main_Client_Thread implements Runnable{
      * Method to manage the client-server interaction and file download process.
      */
     public void manage(){
+        while(true){
         try {
+            if (Objects.equals((String) this.input_client.readObject(), "?")){
+                // The server needs me as a worker !
+                double value = Math.random();
+                if(value < 0.5){
+                    // I refuse
+
+                }
+            }
+
             // On initialise la socket
             this.output_client.writeObject("-1");
             // On lit ce qu'on reçoit,
@@ -138,12 +149,13 @@ public class Main_Client_Thread implements Runnable{
                 System.out.println("file id chosen is: " + x);  // Output user input
             }
 
-            int cursor = 0;
-            for(int i=0; i<=100000;i=i+20000) {
-                executor.submit(new Main_Client_Thread(x, i, i+20000, cursor));
-                cursor = cursor + 1;
-            }
-            executor.submit(new Main_Client_Thread(x, 100000, -1, cursor));
+            // I need to send the file that the client wants
+            this.output_client.writeObject(x);
+
+            executor.submit(new Main_Client_Thread(x, 0, 10000, 1));
+            executor.submit(new Main_Client_Thread(x, 10000, 20000, 2));
+            executor.submit(new Main_Client_Thread(x, 20000, 30000, 3));
+            executor.submit(new Main_Client_Thread(x, 30000, -1, 4));
             executor.awaitTermination(2, TimeUnit.SECONDS);
             String f = "";
             for(String st : this.l){
@@ -166,10 +178,14 @@ public class Main_Client_Thread implements Runnable{
             byte[] theMD5digest = md.digest(bytesOfMessage);
             // We send the hashCode
             output_client.writeObject(theMD5digest);
+
+            // We set x to 0 so that the user can input a value again
+            x = 0;
         }
         catch (Exception e) {
             System.out.println(e);
-        }
+        }}
+
 
     }
 
@@ -198,6 +214,10 @@ public class Main_Client_Thread implements Runnable{
                 filename = arg.substring(7); // Extrait la partie après "--file="
                 break;
             }
+            if (arg.startsWith("--DC=")) {
+                filename = arg.substring(4); // Extrait la partie après "--file="
+                break;
+            }
         }
         if (filename != null) {
             // Utiliser la valeur du fichier ici
@@ -209,6 +229,7 @@ public class Main_Client_Thread implements Runnable{
         System.out.println("Client_Thread ! " );
         Main_Client_Thread m = new Main_Client_Thread();
         m.manage();
+
     }
 }
 

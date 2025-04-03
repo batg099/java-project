@@ -15,6 +15,7 @@ public class Server {
     private final ExecutorService pool; // ExecutorService to manage a pool of threads handling client requests concurrently
     public static HashMap<Integer,String> container; // A HashMap storing file IDs and corresponding file names
     public HashMap<String,ArrayList<Socket>> trusted; // A HashMap storing the list of trusted clients for each file
+    private int poolSize;
 
     /**
      * Server's constructor
@@ -25,6 +26,7 @@ public class Server {
     public Server(int port, int poolSize) throws IOException {
         this.trusted = new HashMap<>();
         this.pool = Executors.newFixedThreadPool(poolSize);
+        this.poolSize = poolSize;
         container = new HashMap<>();
         int id = 0;
         // Set the default directory to current one
@@ -42,17 +44,23 @@ public class Server {
      * Manages the server by launching slaves
      */
     public void manageRequest() {
+        int nbClients = 0;
         while(true) {
             try {
-                System.out.println("Waiting for connection...");
-                Socket client = this.serverSocket.accept();
-                System.out.println("Accepted connection from " + client.getInetAddress().getHostAddress());
+                if(nbClients <= this.poolSize) {
+                    System.out.println("Waiting for connection...");
+                    Socket client = this.serverSocket.accept();
+                    System.out.println("Accepted connection from " + client.getInetAddress().getHostAddress());
 
-                ObjectInputStream input_client_obj = new ObjectInputStream(client.getInputStream());
-                ObjectOutputStream output_client_obj = new ObjectOutputStream(client.getOutputStream());
+                    ObjectInputStream input_client_obj = new ObjectInputStream(client.getInputStream());
+                    ObjectOutputStream output_client_obj = new ObjectOutputStream(client.getOutputStream());
 
-                pool.submit(new Slave(client,3,input_client_obj,output_client_obj, trusted));
-                //pool.submit(new Slave());
+                    pool.submit(new Slave(client, 1000, input_client_obj, output_client_obj, trusted));
+                    nbClients = nbClients + 1;
+                }
+                else{
+
+                }
 
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -62,7 +70,7 @@ public class Server {
 
     public static void main(String[] args) throws IOException  {
         System.out.println("Server World");
-        Server server = new Server(12345,10);
+        Server server = new Server(12345,3);
         server.manageRequest();
     }
 }

@@ -39,46 +39,53 @@ public class Slave  implements Runnable {
     public void run() {
         try {
             String request = null;
-            while(request != "0"){
+            String fileName = null;
+            do {
+                output_client_obj.writeObject("?");
+                // We listen from the client
                 request = input_client_obj.readObject().toString();
-                System.out.println("Hi - coco");
-                switch(request) {
+                switch (request) {
                     case "0":
                         System.out.println("Le client veut arrêter la connection !");
                         this.socket.close();
                         break;
                     case "-1":
                         System.out.println("Le client veut connaitre la liste des fichiers !");
-                        // output_client_obj.writeObject("La liste des Id est: " + Server.getListId());
                         output_client_obj.writeObject(Server.container);
                         break;
                     default:
                         System.out.println("Le client veut le fichier " + request);
 
-                        if(!(request.equals("Client"))) {
+                        // If thread
+                        if (!(request.equals("Client"))) {
+                            fileName = Server.container.get(Integer.valueOf(request));
                             Object oi = input_client_obj.readObject();
+                            @SuppressWarnings("unchecked")
                             ArrayList<Integer> offsets = (ArrayList<Integer>) oi;
                             System.out.println("I received " + oi.toString());
 
                             File file = new File(request);
                             int hashServer = file.hashCode();
                             // We send the file
-                            writeFile(Files.readAllBytes(Paths.get(Server.container.get(Integer.valueOf(request)))),
+                            writeFile(Files.readAllBytes(Paths.get(fileName)),
                                     offsets.get(0), offsets.get(1));
-                        }
-                        else {
+                        } else {
+                            // We want the file's name
+                            Object file = input_client_obj.readObject();
+                            fileName = Server.container.get((Integer) file);
+                            // We wait for the client's file
                             Object oz = input_client_obj.readObject();
                             // If (our file's MD5) = (the client's MD5)
-                            if (verifyMD5((String)oz)) {
+                            if (verifyMD5((String) oz)) {
                                 // We add the client into the trusted list for the requested file
-                                addTrusted(request);
+                                addTrusted(fileName);
                             }
                             System.out.println(trusted.toString());
                         }
                         break;
                 }
 
-            }
+            } while (!request.equals("0"));
         }
         catch (Exception e){
             System.out.println(e);
