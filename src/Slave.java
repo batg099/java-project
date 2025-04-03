@@ -7,7 +7,10 @@ import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
-
+/**
+ * The Slave class represents a worker that handles communication with the client.
+ * It processes client requests, such as sending files or verifying file integrity.
+ */
 public class Slave  implements Runnable {
     private final Socket socket;
     private final int blockSize;
@@ -21,7 +24,14 @@ public class Slave  implements Runnable {
     public static void main(String[] args) {
         System.out.println("Slave World");
     }
-
+    /**
+     * Constructor for the Slave class.
+     * @param client The client socket
+     * @param blockSize The block size for file transfers
+     * @param i The input stream from the client
+     * @param o The output stream to the client
+     * @param trusted The HashMap of trusted clients
+     */
     public Slave(Socket client, int blockSize, ObjectInputStream i, ObjectOutputStream o, HashMap<String,ArrayList<Socket>> trusted){
         this.socket = client;
         this.blockSize = blockSize;
@@ -30,23 +40,22 @@ public class Slave  implements Runnable {
         this.trusted = trusted;
     }
 
+    /**
+     * Run method for handling client requests in a loop.
+     * It processes requests such as getting the list of files, sending files, or verifying file integrity.
+     */
     public void run() {
         try {
             //output_client_obj.writeObject("Hi Client !");
             String request = null;
             while(request != "0"){
-
                 request = input_client_obj.readObject().toString();
                 System.out.println("Hi - coco");
-                //System.out.println("My request is " + request);
-                //ArrayList<Teacher> liste = new ArrayList<>();
-
                 switch(request) {
                     case "0":
                         System.out.println("Le client veut arrêter la connection !");
                         this.socket.close();
                         break;
-                        //
                     case "-1":
                         System.out.println("Le client veut connaitre la liste des fichiers !");
                         // output_client_obj.writeObject("La liste des Id est: " + Server.getListId());
@@ -56,32 +65,24 @@ public class Slave  implements Runnable {
                         System.out.println("Le client veut le fichier " + request);
 
                         if(!(request.equals("Client"))) {
-                            // A revoir
                             Object oi = input_client_obj.readObject();
                             ArrayList<Integer> offsets = (ArrayList<Integer>) oi;
                             System.out.println("I received " + oi.toString());
 
-                            //Object o2 = input_client_obj.readObject();
-                            //System.out.println("I received the block number : " + o2.toString());
-
-                            /// ////
-
                             File file = new File(request);
                             int hashServer = file.hashCode();
                             // We send the file
-                            writeFile2(Files.readAllBytes(Paths.get(Server.container.get(Integer.valueOf(request)))),
+                            writeFile(Files.readAllBytes(Paths.get(Server.container.get(Integer.valueOf(request)))),
                                     offsets.get(0), offsets.get(1));
-                            //writeFile(request,blockSize, output_client_obj);
-                            // If (our file's MD5) = (the client's MD5)
                         }
                         else {
                             Object oz = input_client_obj.readObject();
+                            // If (our file's MD5) = (the client's MD5)
                             if (verifyMD5((String)oz)) {
                                 // We add the client into the trusted list for the requested file
                                 addTrusted(request);
                             }
                             System.out.println(trusted.toString());
-                            //output_client_obj.writeObject(test);
                         }
                         break;
                 }
@@ -93,38 +94,40 @@ public class Slave  implements Runnable {
         }
     }
 
-    public void writeFile2(byte[] file, int debut, int fin) throws IOException {
+    /**
+     * Writes file content to the client in chunks.
+     * @param file The file content as a byte array
+     * @param debut The start byte index
+     * @param fin The end byte index
+     * @throws IOException If writing the file fails
+     */
+    public void writeFile(byte[] file, int debut, int fin) throws IOException {
         if(fin == -1) fin = file.length ;
         if(debut > file.length) return;
         if(fin - debut > file.length){
-            System.out.println("Hiiii");
             ByteArrayOutputStream b = new ByteArrayOutputStream();
             b.write(file, debut, file.length);
             output_client_obj.writeObject(b.toByteArray());
         }
         else {
             for (int i = debut; i <= fin; i = i + blockSize) {
-                System.out.println(i + " ---- " + (blockSize));
                 ByteArrayOutputStream b = new ByteArrayOutputStream();
                 if (i + blockSize > fin) {
-                    System.out.println("Hiiii222");
-                    System.out.println(i + " | " + fin);
                     b = new ByteArrayOutputStream();
                     b.write(file, i, fin - i );
                     output_client_obj.writeObject(b.toByteArray());
                     break;
                 }
-                System.out.println("Hiiii333");
-                System.out.println(i + " --------- " + fin);
                 b.write(file, i, blockSize);
-                System.out.println("**");
                 output_client_obj.writeObject(b.toByteArray());
             }
         }
     }
-
-    // add the client into the trusted list for the requested file
-    // This method is synchronized because we modify a static element
+    /**
+     * Adds the client into the trusted list for the requested file
+     * This method is synchronized because we modify a static element (trusted)
+     * @param request The requested file
+     */
     public synchronized void addTrusted(String request){
         // If no client associated previously, we create an array list
         trusted.putIfAbsent(request,new ArrayList<Socket>());
@@ -135,7 +138,14 @@ public class Slave  implements Runnable {
         // We replace the old Array List with the new one
         trusted.replace(request,l);
     }
-    // Verify if the Server's MD5 for the file = the client's one
+    /**
+     * Verifies if the MD5 checksum of the file on the server matches the MD5 checksum provided by the client.
+     * @param id The file ID to verify
+     * @return true if the checksums match, otherwise false
+     * @throws IOException If file reading fails
+     * @throws ClassNotFoundException If object deserialization fails
+     * @throws NoSuchAlgorithmException If MD5 algorithm is not available
+     */
     public boolean verifyMD5(String id) throws IOException, ClassNotFoundException, NoSuchAlgorithmException {
         // We receive the hashCode from the client
         Object hashClient = input_client_obj.readObject();
@@ -147,55 +157,11 @@ public class Slave  implements Runnable {
         md.update(bytesOfMessage);
         byte[] theMD5digest = md.digest();
 
-        //System.out.println(Arrays.toString((byte[])hashClient));
         // We verify if it's equal to what the client sent
         if (Arrays.equals(theMD5digest,(byte[])hashClient)){
             System.out.println("The file has been successfully received");
             return true;
         }
         return false;
-    }
-    // Va servir à écrire le fichier dans un tableau de bytes, puis d'envoyer les sizeBlocks
-    public void writeFile(String request, int blockSize, ObjectOutputStream o ) throws IOException {
-        //System.out.println(Server.container.get(file));
-        File file = new File(Server.container.get(Integer.parseInt(request)));
-        byte[] b = Files.readAllBytes(file.toPath());
-        int current = 0;
-        byte[] b2 = new byte[blockSize];
-        //System.out.println(b.length);
-        // We only send blockSize bytes
-        for (int i = 0; i <= b.length - 1; i = i + 1) {
-            //System.out.println(i + " et " + (blockSize - 1));
-            // If we've reached the necessary number of bytes
-            if(i % (blockSize - 1) == 0 && i!= 0){
-                //System.out.println("Je rentre !");
-                b2[current] = b[i];
-                o.writeObject(b2);
-                b2 = new byte[blockSize];
-                current = 0;
-            }
-            else{
-                //System.out.println("Je rentre 2 !");
-                b2[current] = b[i];
-                current = current + 1;
-            }
-            // For the last character, the program go in both else and this if
-            if(i == b.length - 1){
-                //System.out.println("Je rentre 3 !");
-                // Previous version : ne laisser que b2
-                byte [] b3 = new byte[current];
-                int current2 = 0;
-                for (int j=0;j<=b2.length-1;j=j+1){
-                    if(b2[j] != 0){
-                        b3[current2] = b2[j];
-                        current2 =current2 +1;
-                    }
-                }
-                o.writeObject(b2);
-
-                break;
-            }
-        }
-        //d.writeObject(b2);
     }
 }

@@ -8,9 +8,10 @@ import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.*;
-
-// Remarque, ça va prendre 2 secondes à afficher les informations, car on fait un Thread.sleep(2000) dans le serveur
-
+/**
+ * This class represents a client-side worker that handles communication with the server
+ * for downloading parts of a file in a multi-threaded environment.
+ */
 public class Main_Client_Thread implements Runnable{
     private ExecutorService executor;
     private Socket client;
@@ -23,6 +24,14 @@ public class Main_Client_Thread implements Runnable{
     private String finalString;
     private int numBlock;
     private static ArrayList<String> l;
+    /**
+     * Constructor to initialize the client thread with necessary data.
+     * @param x File ID requested
+     * @param debut Start byte index for file chunk
+     * @param fin End byte index for file chunk
+     * @param numBlock Block number for this request
+     * @throws IOException If an I/O error occurs
+     */
     public Main_Client_Thread(int x, int debut, int fin, int numBlock) throws IOException {
         try {
 
@@ -41,17 +50,24 @@ public class Main_Client_Thread implements Runnable{
             l.add("");
             l.add("");
             l.add("");
-            //this.req = req;
         }
         catch (IOException e){
             System.out.println(e);
         }
     }
 
+    /**
+     * Default constructor for creating a Main_Client_Thread without parameters.
+     * @throws IOException If an I/O error occurs
+     */
     public Main_Client_Thread() throws IOException {
         this(0, 0, -1,0);
     }
 
+    /**
+     * Run method for executing the client-side thread.
+     * It connects to the server and processes the file chunks.
+     */
     @Override
     public void run() {
         System.out.println(" Je suis un thread !");
@@ -100,6 +116,9 @@ public class Main_Client_Thread implements Runnable{
         }
     }
 
+    /**
+     * Method to manage the client-server interaction and file download process.
+     */
     public void manage(){
         try {
             // On initialise la socket
@@ -126,10 +145,12 @@ public class Main_Client_Thread implements Runnable{
                 System.out.println("file id chosen is: " + x);  // Output user input
             }
 
-            executor.submit(new Main_Client_Thread(x, 0, 1287,0));
-            executor.submit(new Main_Client_Thread(x, 1287, 2000,1));
-            executor.submit(new Main_Client_Thread(x, 2000, 3000,2));
-            executor.submit(new Main_Client_Thread(x, 3000, -1,3));
+            int cursor = 0;
+            for(int i=0; i<=100000;i=i+20000) {
+                executor.submit(new Main_Client_Thread(x, i, i+20000, cursor));
+                cursor = cursor + 1;
+            }
+            executor.submit(new Main_Client_Thread(x, 100000, -1, cursor));
             executor.awaitTermination(2, TimeUnit.SECONDS);
             String f = "";
             for(String st : this.l){
@@ -149,42 +170,6 @@ public class Main_Client_Thread implements Runnable{
             FileOutputStream fl = new FileOutputStream(requestedFile);
             fl.write((t));
 
-
-            //System.out.println(position.toString());
-
-                //ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
-            /*
-            // If it takes more than 0.5 seconds to receive => we stop reading
-            client.setSoTimeout(500);
-            try {
-                // We can only read a maximum of (20 * blockSize) byte
-                while(true) {
-                    Object req2 = this.input_client.readObject();
-                    // We transform the byte Array into a String using the UTF-8 standard
-                    String s = new String((byte[]) req2, StandardCharsets.UTF_8);
-                    // We merge the different texts received
-                    finale =  finale + s;
-
-                }
-            }
-            catch(SocketTimeoutException e){
-                System.out.println(" Temps d'attente écoulé !");
-            }
-
-            */
-            //System.out.println("habibi " + finale);
-            // We retransform the final string into a byte array
-            //byte [] t = finale.getBytes();
-            /*
-            byte[] t = finalString.getBytes();
-            // We clean the byte array (removing the null elements)
-            t = cleanByteArray(t);
-            //System.out.println("---" + Arrays.toString(t));
-            // We write the byte array into the requested file
-            FileOutputStream fl = new FileOutputStream(requestedFile);
-            fl.write((t));
-            */
-
             this.output_client.writeObject(String.valueOf(x));
             // we generate the hashcode of the file
             byte[] bytesOfMessage = Files.readAllBytes(Paths.get(requestedFile));
@@ -194,9 +179,6 @@ public class Main_Client_Thread implements Runnable{
             //System.out.println("My hashcode is"  + Arrays.toString(theMD5digest));
             // We send the hashCode
             output_client.writeObject(theMD5digest);
-
-
-
         }
         catch (Exception e) {
             System.out.println(e);
@@ -204,6 +186,11 @@ public class Main_Client_Thread implements Runnable{
 
     }
 
+    /**
+     * Cleans the byte array by removing any null (0) values.
+     * @param b The byte array to clean
+     * @return A new byte array without null values
+     */
     public byte[] cleanByteArray(byte[] b){
         ByteArrayOutputStream o = new ByteArrayOutputStream();
         for (Byte bt : b){
