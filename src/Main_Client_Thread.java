@@ -1,6 +1,5 @@
 import java.io.*;
 import java.net.Socket;
-import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -10,42 +9,38 @@ import java.util.*;
 import java.util.concurrent.*;
 /**
  * This class represents a client-side worker that handles communication with the server
- * for downloading parts of a file in a multi-threaded environment.
+ * for downloading parts of a file in a multithreaded environment.
  */
 public class Main_Client_Thread implements Runnable{
     private ExecutorService executor;
     private Socket client;
     private ObjectOutputStream output_client;
     private ObjectInputStream  input_client;
-    private HashMap<Integer,Object> position;
     private int debut;
     private int fin;
-    private int x;
-    private String finalString;
-    private int numBlock;
-    private static ArrayList<String> l;
+    private int x; // id of the wanted file
+    private String finalString; // Is going to contain the file received
+    private int numBlock; // Number associated to each thread (0 for the main)
+    private static ArrayList<String> l; // Is going to contain all the file parts that the threads receive
     /**
      * Constructor to initialize the client thread with necessary data.
      * @param x File ID requested
      * @param debut Start byte index for file chunk
      * @param fin End byte index for file chunk
      * @param numBlock Block number for this request
-     * @throws IOException If an I/O error occurs
      */
-    public Main_Client_Thread(int x, int debut, int fin, int numBlock) throws IOException {
+    public Main_Client_Thread(int x, int debut, int fin, int numBlock) {
         try {
-
             this.executor = Executors.newFixedThreadPool(6);
             client = new Socket("127.0.0.1", 12345);
             this.output_client = new ObjectOutputStream(client.getOutputStream());
             this.input_client = new ObjectInputStream(client.getInputStream());
-            this.position = new HashMap<Integer,Object>();
             this.x = x;
             this.debut = debut;
             this.fin = fin;
             this.finalString="";
             this.numBlock = numBlock;
-            this.l = new ArrayList<String>();
+            l = new ArrayList<>();
             l.add("");
             l.add("");
             l.add("");
@@ -75,14 +70,14 @@ public class Main_Client_Thread implements Runnable{
         try{
             // On initialise la socket
             this.output_client.writeObject("-1");
-            // On lit ce qu'on reçoit
-            // On pourrait directement cast, car on est censer connaitre les types reçues
-            // On pourrait donc faire : ArrayList<Integer> liste = ArrayList<Integer> request;
+            // On lit ce qu'on reçoit,
+            // On pourrait directement cast, car on est censer connaitre les types reçus
+            // On pourrait donc faire : ArrayList<Integer> liste = ArrayList<Integer> request.
             Object req = this.input_client.readObject();
 
             this.output_client.writeObject(x);
 
-            ArrayList<Integer> offsets = new ArrayList<Integer>();
+            ArrayList<Integer> offsets = new ArrayList<>();
             offsets.add(debut);
             offsets.add(fin);
             this.output_client.writeObject(offsets);
@@ -107,10 +102,8 @@ public class Main_Client_Thread implements Runnable{
             catch(SocketTimeoutException sck){
                 System.out.println(" Temps d'attente écoulé !");
             }
-            //System.out.println(finale);
             finalString = finalString + finale;
             l.set(this.numBlock,finalString);
-            //System.out.println(finalString);
         } catch (Exception e) {
             System.out.println(e);
         }
@@ -123,9 +116,9 @@ public class Main_Client_Thread implements Runnable{
         try {
             // On initialise la socket
             this.output_client.writeObject("-1");
-            // On lit ce qu'on reçoit
-            // On pourrait directement cast, car on est censer connaitre les types reçues
-            // On pourrait donc faire : ArrayList<Integer> liste = ArrayList<Integer> request;
+            // On lit ce qu'on reçoit,
+            // On pourrait directement cast, car on est censer connaitre les types reçus
+            // On pourrait donc faire : ArrayList<Integer> liste = ArrayList<Integer> request.
             Object req = this.input_client.readObject();
             @SuppressWarnings("unchecked")
             HashMap<Integer, String> request = (HashMap<Integer, String>) req;
@@ -156,14 +149,10 @@ public class Main_Client_Thread implements Runnable{
             for(String st : this.l){
                 f = f + st;
             }
-            System.out.println("----------------------------------");
-            System.out.println(f);
-
 
             byte[] t = f.getBytes();
             // We clean the byte array (removing the null elements)
             t = cleanByteArray(t);
-            //System.out.println("---" + Arrays.toString(t));
             // We write the byte array into the requested file
             System.out.println(request.get(x));
             String requestedFile = "__"+request.get(x);
@@ -175,8 +164,6 @@ public class Main_Client_Thread implements Runnable{
             byte[] bytesOfMessage = Files.readAllBytes(Paths.get(requestedFile));
             MessageDigest md = MessageDigest.getInstance("MD5");
             byte[] theMD5digest = md.digest(bytesOfMessage);
-
-            //System.out.println("My hashcode is"  + Arrays.toString(theMD5digest));
             // We send the hashCode
             output_client.writeObject(theMD5digest);
         }
@@ -206,9 +193,9 @@ public class Main_Client_Thread implements Runnable{
         String filename = null;
 
         // This block of code (to handle parameters) has been generated by AI
-        for (int i = 0; i < args.length; i++) {
-            if (args[i].startsWith("--file=")) {
-                filename = args[i].substring(7); // Extrait la partie après "--file="
+        for (String arg : args) {
+            if (arg.startsWith("--file=")) {
+                filename = arg.substring(7); // Extrait la partie après "--file="
                 break;
             }
         }

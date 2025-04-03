@@ -1,6 +1,4 @@
-import java.awt.*;
 import java.io.*;
-import java.lang.reflect.Array;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -16,14 +14,8 @@ public class Slave  implements Runnable {
     private final int blockSize;
     private final ObjectInputStream input_client_obj;
     private final ObjectOutputStream output_client_obj;
-    // A HashMap of File/Trusted clients
-    public HashMap<String,ArrayList<Socket>> trusted;
+    public HashMap<String,ArrayList<Socket>> trusted; // A HashMap of File/Trusted clients
 
-
-
-    public static void main(String[] args) {
-        System.out.println("Slave World");
-    }
     /**
      * Constructor for the Slave class.
      * @param client The client socket
@@ -46,7 +38,6 @@ public class Slave  implements Runnable {
      */
     public void run() {
         try {
-            //output_client_obj.writeObject("Hi Client !");
             String request = null;
             while(request != "0"){
                 request = input_client_obj.readObject().toString();
@@ -163,5 +154,10 @@ public class Slave  implements Runnable {
             return true;
         }
         return false;
+    }
+
+
+    public static void main(String[] args) {
+        System.out.println("Slave World");
     }
 }
