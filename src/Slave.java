@@ -15,6 +15,7 @@ public class Slave  implements Runnable {
     private final ObjectInputStream input_client_obj;
     private final ObjectOutputStream output_client_obj;
     public HashMap<String,ArrayList<Socket>> trusted; // A HashMap of File/Trusted clients
+    private static ArrayList<String> usedTokens;
 
     /**
      * Constructor for the Slave class.
@@ -30,6 +31,7 @@ public class Slave  implements Runnable {
         this.input_client_obj = i;
         this.output_client_obj = o;
         this.trusted = trusted;
+        usedTokens = new ArrayList<>();
     }
 
     /**
@@ -41,7 +43,6 @@ public class Slave  implements Runnable {
             String request = null;
             String fileName = null;
             do {
-                output_client_obj.writeObject("?");
                 // We listen from the client
                 request = input_client_obj.readObject().toString();
                 switch (request) {

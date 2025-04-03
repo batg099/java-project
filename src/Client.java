@@ -11,7 +11,7 @@ import java.util.concurrent.*;
  * This class represents a client-side worker that handles communication with the server
  * for downloading parts of a file in a multithreaded environment.
  */
-public class Main_Client_Thread implements Runnable{
+public class Client implements Runnable{
     private ExecutorService executor;
     private Socket client;
     private ObjectOutputStream output_client;
@@ -29,7 +29,7 @@ public class Main_Client_Thread implements Runnable{
      * @param fin End byte index for file chunk
      * @param numBlock Block number for this request
      */
-    public Main_Client_Thread(int x, int debut, int fin, int numBlock) {
+    public Client(int x, int debut, int fin, int numBlock) {
         try {
             this.executor = Executors.newFixedThreadPool(6);
             client = new Socket("127.0.0.1", 12345);
@@ -55,7 +55,7 @@ public class Main_Client_Thread implements Runnable{
      * Default constructor for creating a Main_Client_Thread without parameters.
      * @throws IOException If an I/O error occurs
      */
-    public Main_Client_Thread() throws IOException {
+    public Client() throws IOException {
         this(0, 0, -1,0);
     }
 
@@ -115,76 +115,82 @@ public class Main_Client_Thread implements Runnable{
      */
     public void manage(){
         while(true){
-        try {
-            if (Objects.equals((String) this.input_client.readObject(), "?")){
-                // The server needs me as a worker !
-                double value = Math.random();
-                if(value < 0.5){
-                    // I refuse
-
+            try {
+                Object obj = this.input_client.readObject();
+                if (Objects.equals((String) obj, "?")){
+                    System.out.println("The server needs me as a worker");
+                    // The server needs me as a worker !
+                    double value = Math.random();
+                    if(value >= 0.5){
+                        // I accept
+                        String uniqueID = UUID.randomUUID().toString();
+                        output_client.writeObject(uniqueID);
+                    }
+                    else{
+                        output_client.writeObject("No");
+                    }
                 }
+
+                // On initialise la socket
+                this.output_client.writeObject("-1");
+                // On lit ce qu'on reçoit,
+                // On pourrait directement cast, car on est censer connaitre les types reçus
+                // On pourrait donc faire : ArrayList<Integer> liste = ArrayList<Integer> request.
+                Object req = this.input_client.readObject();
+                @SuppressWarnings("unchecked")
+                HashMap<Integer, String> request = (HashMap<Integer, String>) req;
+                request.forEach((k, v) -> {
+                    System.out.println("J'ai reçu " + v + " - " + k);
+                });
+
+                this.output_client.writeObject("Client");
+
+                // If no file chosen
+                while (x == 0) {
+                    Scanner myObj = new Scanner(System.in);  // Create a Scanner object
+                    System.out.println("Enter file id");
+
+                    String fileId = myObj.nextLine();  // Read user input
+                    x = Integer.parseInt(fileId);
+                    System.out.println("file id chosen is: " + x);  // Output user input
+                }
+
+                // I need to send the file that the client wants
+                this.output_client.writeObject(x);
+
+                executor.submit(new Client(x, 0, 10000, 1));
+                executor.submit(new Client(x, 10000, 20000, 2));
+                executor.submit(new Client(x, 20000, 30000, 3));
+                executor.submit(new Client(x, 30000, -1, 4));
+                executor.awaitTermination(2, TimeUnit.SECONDS);
+                String f = "";
+                for(String st : this.l){
+                    f = f + st;
+                }
+
+                byte[] t = f.getBytes();
+                // We clean the byte array (removing the null elements)
+                t = cleanByteArray(t);
+                // We write the byte array into the requested file
+                System.out.println(request.get(x));
+                String requestedFile = "__"+request.get(x);
+                FileOutputStream fl = new FileOutputStream(requestedFile);
+                fl.write((t));
+
+                this.output_client.writeObject(String.valueOf(x));
+                // we generate the hashcode of the file
+                byte[] bytesOfMessage = Files.readAllBytes(Paths.get(requestedFile));
+                MessageDigest md = MessageDigest.getInstance("MD5");
+                byte[] theMD5digest = md.digest(bytesOfMessage);
+                // We send the hashCode
+                output_client.writeObject(theMD5digest);
+
+                // We set x to 0 so that the user can input a value again
+                x = 0;
             }
-
-            // On initialise la socket
-            this.output_client.writeObject("-1");
-            // On lit ce qu'on reçoit,
-            // On pourrait directement cast, car on est censer connaitre les types reçus
-            // On pourrait donc faire : ArrayList<Integer> liste = ArrayList<Integer> request.
-            Object req = this.input_client.readObject();
-            @SuppressWarnings("unchecked")
-            HashMap<Integer, String> request = (HashMap<Integer, String>) req;
-            request.forEach((k, v) -> {
-                System.out.println("J'ai reçu " + v + " - " + k);
-            });
-
-            this.output_client.writeObject("Client");
-
-            // If no file chosen
-            while (x == 0) {
-                Scanner myObj = new Scanner(System.in);  // Create a Scanner object
-                System.out.println("Enter file id");
-
-                String fileId = myObj.nextLine();  // Read user input
-                x = Integer.parseInt(fileId);
-                System.out.println("file id chosen is: " + x);  // Output user input
-            }
-
-            // I need to send the file that the client wants
-            this.output_client.writeObject(x);
-
-            executor.submit(new Main_Client_Thread(x, 0, 10000, 1));
-            executor.submit(new Main_Client_Thread(x, 10000, 20000, 2));
-            executor.submit(new Main_Client_Thread(x, 20000, 30000, 3));
-            executor.submit(new Main_Client_Thread(x, 30000, -1, 4));
-            executor.awaitTermination(2, TimeUnit.SECONDS);
-            String f = "";
-            for(String st : this.l){
-                f = f + st;
-            }
-
-            byte[] t = f.getBytes();
-            // We clean the byte array (removing the null elements)
-            t = cleanByteArray(t);
-            // We write the byte array into the requested file
-            System.out.println(request.get(x));
-            String requestedFile = "__"+request.get(x);
-            FileOutputStream fl = new FileOutputStream(requestedFile);
-            fl.write((t));
-
-            this.output_client.writeObject(String.valueOf(x));
-            // we generate the hashcode of the file
-            byte[] bytesOfMessage = Files.readAllBytes(Paths.get(requestedFile));
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] theMD5digest = md.digest(bytesOfMessage);
-            // We send the hashCode
-            output_client.writeObject(theMD5digest);
-
-            // We set x to 0 so that the user can input a value again
-            x = 0;
-        }
-        catch (Exception e) {
-            System.out.println(e);
-        }}
+            catch (Exception e) {
+                System.out.println(e);
+            }}
 
 
     }
@@ -227,10 +233,10 @@ public class Main_Client_Thread implements Runnable{
         }
 
         System.out.println("Client_Thread ! " );
-        Main_Client_Thread m = new Main_Client_Thread();
+        Client m = new Client();
         m.manage();
+        System.out.println("Client_Thread ! " );
+        //m.manage();
 
     }
 }
-
-

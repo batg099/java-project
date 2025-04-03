@@ -47,19 +47,16 @@ public class Server {
         int nbClients = 0;
         while(true) {
             try {
-                if(nbClients <= this.poolSize) {
+                if(nbClients <= poolSize) {
                     System.out.println("Waiting for connection...");
                     Socket client = this.serverSocket.accept();
                     System.out.println("Accepted connection from " + client.getInetAddress().getHostAddress());
 
-                    ObjectInputStream input_client_obj = new ObjectInputStream(client.getInputStream());
                     ObjectOutputStream output_client_obj = new ObjectOutputStream(client.getOutputStream());
+                    ObjectInputStream input_client_obj = new ObjectInputStream(client.getInputStream());
 
                     pool.submit(new Slave(client, 1000, input_client_obj, output_client_obj, trusted));
                     nbClients = nbClients + 1;
-                }
-                else{
-
                 }
 
             } catch (IOException e) {
