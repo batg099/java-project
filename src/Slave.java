@@ -1,4 +1,6 @@
+import java.awt.desktop.SystemSleepEvent;
 import java.io.*;
+import java.lang.reflect.Array;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -15,7 +17,10 @@ public class Slave  implements Runnable {
     private final ObjectInputStream input_client_obj;
     private final ObjectOutputStream output_client_obj;
     public HashMap<String,ArrayList<Socket>> trusted; // A HashMap of File/Trusted clients
+    private final String request;
+    //private Integer nbClients;
     private static ArrayList<String> usedTokens;
+
 
     /**
      * Constructor for the Slave class.
@@ -25,12 +30,13 @@ public class Slave  implements Runnable {
      * @param o The output stream to the client
      * @param trusted The HashMap of trusted clients
      */
-    public Slave(Socket client, int blockSize, ObjectInputStream i, ObjectOutputStream o, HashMap<String,ArrayList<Socket>> trusted){
+    public Slave(Socket client, int blockSize, ObjectInputStream i, ObjectOutputStream o, HashMap<String,ArrayList<Socket>> trusted, String request){
         this.socket = client;
         this.blockSize = blockSize;
         this.input_client_obj = i;
         this.output_client_obj = o;
         this.trusted = trusted;
+        this.request = request;
         usedTokens = new ArrayList<>();
     }
 
@@ -39,26 +45,21 @@ public class Slave  implements Runnable {
      * It processes requests such as getting the list of files, sending files, or verifying file integrity.
      */
     public void run() {
-        try {
-            String request = null;
-            String fileName = null;
-            do {
-                // We listen from the client
-                request = input_client_obj.readObject().toString();
+        // PAS SUR
+            //System.out.println("Le nombre de client est " + nbClients);
+            try {
+                String fileName = null;
                 switch (request) {
                     case "0":
                         System.out.println("Le client veut arrêter la connection !");
                         this.socket.close();
                         break;
-                    case "-1":
-                        System.out.println("Le client veut connaitre la liste des fichiers !");
-                        output_client_obj.writeObject(Server.container);
-                        break;
                     default:
                         System.out.println("Le client veut le fichier " + request);
+                        String identity = (String) input_client_obj.readObject();
 
                         // If thread
-                        if (!(request.equals("Client"))) {
+                        if (!(identity.equals("Client"))) {
                             fileName = Server.container.get(Integer.valueOf(request));
                             Object oi = input_client_obj.readObject();
                             @SuppressWarnings("unchecked")
@@ -71,26 +72,24 @@ public class Slave  implements Runnable {
                             writeFile(Files.readAllBytes(Paths.get(fileName)),
                                     offsets.get(0), offsets.get(1));
                         } else {
+                            output_client_obj.writeObject("-");
                             // We want the file's name
-                            Object file = input_client_obj.readObject();
-                            fileName = Server.container.get((Integer) file);
+                            //Object file = input_client_obj.readObject();
+                            fileName = Server.container.get(Integer.valueOf(request));
                             // We wait for the client's file
                             Object oz = input_client_obj.readObject();
                             // If (our file's MD5) = (the client's MD5)
                             if (verifyMD5((String) oz)) {
                                 // We add the client into the trusted list for the requested file
-                                addTrusted(fileName);
+                                addTrusted(request);
                             }
                             System.out.println(trusted.toString());
                         }
                         break;
                 }
-
-            } while (!request.equals("0"));
-        }
-        catch (Exception e){
-            System.out.println(e);
-        }
+            } catch (Exception e) {
+                System.out.println(e);
+            }
     }
 
     /**
@@ -121,6 +120,24 @@ public class Slave  implements Runnable {
                 output_client_obj.writeObject(b.toByteArray());
             }
         }
+    }
+
+    public byte[] getBlock(byte[] file, int blockNumber){
+        int nb=0;
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        for(int i=0;i<=file.length-1;i=i+blockSize){
+            if(nb == blockNumber){
+                if(i+blockSize <= file.length) {
+                    b.write(file, i, i + blockSize);
+                    break;
+                }
+                else{
+                    b.write(file, i, file.length);
+                    break;
+                }
+            }
+        }
+        return b.toByteArray();
     }
     /**
      * Adds the client into the trusted list for the requested file

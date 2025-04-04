@@ -22,6 +22,7 @@ public class Client implements Runnable{
     private String finalString; // Is going to contain the file received
     private int numBlock; // Number associated to each thread (0 for the main)
     private static ArrayList<String> l; // Is going to contain all the file parts that the threads receive
+
     /**
      * Constructor to initialize the client thread with necessary data.
      * @param x File ID requested
@@ -66,26 +67,33 @@ public class Client implements Runnable{
     @Override
     public void run() {
         System.out.println(" Je suis un thread !");
-
-        try{
-            // On initialise la socket
-            this.output_client.writeObject("-1");
+        try {
             // On lit ce qu'on reçoit,
             // On pourrait directement cast, car on est censer connaitre les types reçus
             // On pourrait donc faire : ArrayList<Integer> liste = ArrayList<Integer> request.
+            //this.input_client.readObject(); // Ne sert a rien
             Object req = this.input_client.readObject();
+            if(req instanceof String) {
+                if((String) req == "?"){
+                    System.out.println("--------------------------------");
+                }
 
+            }
             this.output_client.writeObject(x);
+
+            this.output_client.writeObject("Sous-Client");
 
             ArrayList<Integer> offsets = new ArrayList<>();
             offsets.add(debut);
             offsets.add(fin);
             this.output_client.writeObject(offsets);
 
+            //String question = (String) input_client.readObject();
+
             @SuppressWarnings("unchecked")
             HashMap<Integer, String> request = (HashMap<Integer, String>) req;
             String s = "__" + request.get(x);
-            String finale ="";
+            String finale = "";
             System.out.println(s);
             client.setSoTimeout(500);
             try {
@@ -96,15 +104,14 @@ public class Client implements Runnable{
                     // We merge the different texts received
                     finale = finale + s2;
                 }
-            }
-            catch(SocketTimeoutException sck){
+            } catch (SocketTimeoutException sck) {
                 System.out.println(" Temps d'attente écoulé !");
                 System.out.println("J'ai reçu : " + finale + " | And I am the thread number " + numBlock);
                 // We close the connection
                 output_client.writeObject("0");
             }
             finalString = finalString + finale;
-            l.set(this.numBlock-1,finalString);
+            l.set(this.numBlock - 1, finalString);
         } catch (Exception e) {
             System.out.println(e);
         }
@@ -114,25 +121,7 @@ public class Client implements Runnable{
      * Method to manage the client-server interaction and file download process.
      */
     public void manage(){
-        while(true){
             try {
-                Object obj = this.input_client.readObject();
-                if (Objects.equals((String) obj, "?")){
-                    System.out.println("The server needs me as a worker");
-                    // The server needs me as a worker !
-                    double value = Math.random();
-                    if(value >= 0.5){
-                        // I accept
-                        String uniqueID = UUID.randomUUID().toString();
-                        output_client.writeObject(uniqueID);
-                    }
-                    else{
-                        output_client.writeObject("No");
-                    }
-                }
-
-                // On initialise la socket
-                this.output_client.writeObject("-1");
                 // On lit ce qu'on reçoit,
                 // On pourrait directement cast, car on est censer connaitre les types reçus
                 // On pourrait donc faire : ArrayList<Integer> liste = ArrayList<Integer> request.
@@ -143,8 +132,6 @@ public class Client implements Runnable{
                     System.out.println("J'ai reçu " + v + " - " + k);
                 });
 
-                this.output_client.writeObject("Client");
-
                 // If no file chosen
                 while (x == 0) {
                     Scanner myObj = new Scanner(System.in);  // Create a Scanner object
@@ -154,43 +141,59 @@ public class Client implements Runnable{
                     x = Integer.parseInt(fileId);
                     System.out.println("file id chosen is: " + x);  // Output user input
                 }
-
-                // I need to send the file that the client wants
                 this.output_client.writeObject(x);
+                this.output_client.writeObject("Client");
 
-                executor.submit(new Client(x, 0, 10000, 1));
-                executor.submit(new Client(x, 10000, 20000, 2));
-                executor.submit(new Client(x, 20000, 30000, 3));
-                executor.submit(new Client(x, 30000, -1, 4));
-                executor.awaitTermination(2, TimeUnit.SECONDS);
-                String f = "";
-                for(String st : this.l){
-                    f = f + st;
+                //String question = (String) input_client.readObject();
+                //if (question.equals("-")) {
+                    //System.out.println("Question is " + question);
+                    // I need to send the file that the client wants
+                    //executor.submit(new Client(x, 0, 10000, 1));
+                    //executor.submit(new Client(x, 10000, 20000, 2));
+                    //executor.submit(new Client(x, 20000, 30000, 3));
+                    executor.submit(new Client(x, 0, -1, 4));
+                    executor.awaitTermination(2, TimeUnit.SECONDS);
+                    String f = "";
+                    for (String st : this.l) {
+                        f = f + st;
+                    }
+
+                    byte[] t = f.getBytes();
+                    // We clean the byte array (removing the null elements)
+                    t = cleanByteArray(t);
+                    // We write the byte array into the requested file
+                    System.out.println(request.get(x));
+                    String requestedFile = "__" + request.get(x);
+                    FileOutputStream fl = new FileOutputStream(requestedFile);
+                    fl.write((t));
+
+                    this.output_client.writeObject(String.valueOf(x));
+                    // we generate the hashcode of the file
+                    byte[] bytesOfMessage = Files.readAllBytes(Paths.get(requestedFile));
+                    MessageDigest md = MessageDigest.getInstance("MD5");
+                    byte[] theMD5digest = md.digest(bytesOfMessage);
+                    // We send the hashCode
+                    output_client.writeObject(theMD5digest);
+
+                    // We set x to 0 so that the user can input a value again
+                    x = 0;
+
+                    //
+                    //output_client.writeObject("hi");
+                    if (Objects.equals((String) input_client.readObject(), "?")){
+                        System.out.println("-------------------");
+                    };
+                //}
+                /*
+                else {
+                    System.out.println(" I am gonna be a worker !");
                 }
 
-                byte[] t = f.getBytes();
-                // We clean the byte array (removing the null elements)
-                t = cleanByteArray(t);
-                // We write the byte array into the requested file
-                System.out.println(request.get(x));
-                String requestedFile = "__"+request.get(x);
-                FileOutputStream fl = new FileOutputStream(requestedFile);
-                fl.write((t));
-
-                this.output_client.writeObject(String.valueOf(x));
-                // we generate the hashcode of the file
-                byte[] bytesOfMessage = Files.readAllBytes(Paths.get(requestedFile));
-                MessageDigest md = MessageDigest.getInstance("MD5");
-                byte[] theMD5digest = md.digest(bytesOfMessage);
-                // We send the hashCode
-                output_client.writeObject(theMD5digest);
-
-                // We set x to 0 so that the user can input a value again
-                x = 0;
-            }
+                 */
+        }
             catch (Exception e) {
                 System.out.println(e);
-            }}
+            }
 
 
     }
@@ -235,7 +238,6 @@ public class Client implements Runnable{
         System.out.println("Client_Thread ! " );
         Client m = new Client();
         m.manage();
-        System.out.println("Client_Thread ! " );
         //m.manage();
 
     }
